@@ -14,6 +14,9 @@
 # runs as root by default, which is part of the container-layer weakness.)
 FROM amazoncorretto:21-alpine
 
+ARG PROD_DB_PASSWORD
+ARG AWS_SECRET_ACCESS_KEY
+
 WORKDIR /app
 
 # The application. The page templates and JS render function are packaged
@@ -36,7 +39,6 @@ COPY target/vuln-chain-demo-1.0.0.jar /app/app.jar
 # secrets are still baked in, the container still runs as root -- yet the
 # exploit no longer works, because the only door to it is shut.
 # ---------------------------------------------------------------------------
-ENV BW_SESSION=${BW_SESSION}
 ENV PROD_DB_PASSWORD=${PROD_DB_PASSWORD}
 ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 
