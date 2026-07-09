@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      ====================================================================
+      THE KEYSTONE OF THE CHAIN IS THIS ONE VERSION NUMBER.
+      ====================================================================
+      Spring Boot 3.4.14 is a commercial LTS (Enterprise) release. It pulls
+      Spring Framework 6.2.16, which is vulnerable to CVE-2026-22737
+      (MEDIUM, CVSS 5.9): an unsanitized path in ScriptTemplateView that
+      lets a request read arbitrary files off the container filesystem.
+
+      Why this exact version: 3.4.14 LTS scans ZERO HIGH/CRITICAL in Trivy
+      (its backported Tomcat/Jetty/Boot fixes clear every high), yet still
+      ships the vulnerable Framework 6.2.16. The next LTS patch, 3.4.15,
+      bundles Framework 6.2.17 which fixes CVE-2026-22737, so the
+      remediation is simply "upgrade Spring Boot" (what the `advisor` CLI
+      will tell you to do). Upgrade, rebuild, and the exploit stops working
+      even though the container weakness it abuses is untouched.
+
+      NOTE: 3.4.x is past OSS support; these artifacts come from the Spring
+      Enterprise repository (packages.broadcom.com), typically proxied
+      through your internal Nexus/Artifactory.
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.4.14</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.example</groupId>
+    <artifactId>vuln-chain-demo</artifactId>
+    <version>1.0.0</version>
+    <name>vuln-chain-demo</name>
+    <description>Vulnerability-chaining demo: a MEDIUM Spring CVE + a container misconfig = high-impact disclosure, on a Trivy-clean (zero-HIGH) image</description>
+
+    <properties>
+        <java.version>21</java.version>
+    </properties>
+
+    <dependencies>
+        <!--
+          spring-boot-starter-web, but with two deliberate trims:
+            * Tomcat removed, Undertow swapped in. Not for the CVE (this one
+              is container-agnostic) but because the LTS Undertow scans clean
+              while the bundled Tomcat patch still carried HIGH CVEs.
+            * Jackson (spring-boot-starter-json) removed. The app discloses
+              file bytes as text/plain, so it needs no JSON, and dropping
+              Jackson removes its HIGH CVEs from the scan.
+          The point of the demo is a GREEN scan that is still exploitable;
+          these trims are how we get a legitimately green scan.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-json</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-undertow</artifactId>
+        </dependency>
+
+        <!--
+          A JSR-223 script engine, required to enable ScriptTemplateView
+          (the feature CVE-2026-22737 lives in). Standalone Nashorn is used
+          because Nashorn was removed from the JDK in 15+. It scans clean.
+        -->
+        <dependency>
+            <groupId>org.openjdk.nashorn</groupId>
+            <artifactId>nashorn-core</artifactId>
+            <version>15.6</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
